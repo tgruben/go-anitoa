@@ -14,6 +14,9 @@ const (
 	PO16          uint64 = 10000000000000000
 	ZERO_CHARS    uint64 = 0x3030303030303030
 	ZERO_CHARS_32 uint32 = 0x30303030
+	ZERO_MASK     uint32 = 0xFFFFFFF8
+
+	MAX_UINT64_DIGITS = 20
 )
 
 //
@@ -161,9 +164,10 @@ func itoaTenThousand(out []byte, x uint32) []byte {
 	 * little endian) zero bytes: count leading zero bits and
 	 * round down to 8.
 	 */
-	zeros := uint32(bits.TrailingZeros32(buf)) & ^uint32(8)
+	zeros := uint32(bits.TrailingZeros32(buf)) & ZERO_MASK
 	buf += ZERO_CHARS_32 /* BCD -> ASCII. */
 	buf = buf >> zeros   /* Shift away leading zero characters */
+
 	//	memcpy(out, &buf, 4);
 	out[0] = byte(buf)
 	out[1] = byte(buf >> 8)
@@ -279,7 +283,7 @@ func anItoa(out []byte, x uint32) []byte {
 
 	if x < uint32(PO8) {
 
-		zeros := uint32(bits.TrailingZeros64(buf)) & ^uint32(8)
+		zeros := uint32(bits.TrailingZeros64(buf)) & ZERO_MASK
 
 		buf += ZERO_CHARS
 		buf = buf >> zeros
@@ -335,6 +339,33 @@ func ldivPO16(x uint64) uint64 {
 	return hi >> 51
 }
 
+// FormatUint returns a byte slice containing a uint64 formatted to a string.
+// Note that this uses some intermediate memory; if you want to target a binary
+// format, use Anltoa.
+func FormatUint(x uint64) string {
+	var buf [MAX_UINT64_DIGITS]byte
+	remainder := Anltoa(buf[:], x)
+	return string(buf[:len(buf)-len(remainder)])
+}
+
+// FormatInt returns a byte slice containing a int64 formatted to a string.
+// Note that this uses some intermediate memory; if you want to target a binary
+// format, use Anltoa.
+func FormatInt(x int64) string {
+	if x >= 0 {
+		return FormatUint(uint64(x))
+	}
+
+	var buf [MAX_UINT64_DIGITS + 1]byte
+	buf[0] = '-'
+	remainder := Anltoa(buf[1:], uint64(-x))
+	return string(buf[:len(buf)-len(remainder)])
+}
+
+// Anltoa takes a byte buffer and a number, and encodes the number as a string
+// to the buffer. It will panic if the buffer is too small; the maximum number
+// of digits a 64-bit uint can be is 20. It returns the portion of the slice
+// after the encoded number.
 func Anltoa(out []byte, x uint64) []byte {
 	if x < PO2 {
 		return itoaHundred(out, uint32(x))
@@ -354,7 +385,7 @@ func Anltoa(out []byte, x uint64) []byte {
 	 */
 	if x < PO8 {
 		buf := encodeTenThousands(xDivPO4, xModPO4)
-		zeros := uint32(bits.TrailingZeros64(buf)) & ^uint32(8)
+		zeros := uint32(bits.TrailingZeros64(buf)) & ZERO_MASK
 		buf += ZERO_CHARS
 		buf = buf >> zeros
 
@@ -387,7 +418,7 @@ func Anltoa(out []byte, x uint64) []byte {
 		hiHi := uint64(idivPO4(uint32(xDivPO8)))
 		hiLo := xDivPO8 - hiHi*PO4
 		bufHi := encodeTenThousands(hiHi, hiLo)
-		zeros := uint32(bits.TrailingZeros64(buf)) & ^uint32(8)
+		zeros := uint32(bits.TrailingZeros64(bufHi)) & ZERO_MASK
 
 		bufHi += ZERO_CHARS
 		bufHi = bufHi >> zeros

@@ -2,19 +2,58 @@ package itoa
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
-	"strings"
 	"testing"
-
-	_ "github.com/pilosa/pilosa/test"
 )
 
-func TestHello(t *testing.T) {
-	buf := make([]byte, 8)
-	Anltoa(buf, 10000000)
-	if strings.Compare(string(buf), string("10000000")) != 0 {
-		t.Errorf("\n(%s)\n(%s)", len(string(buf)), len("10000000"))
+const (
+	printerIterations = 10000
+)
+
+func testPrinter(t *testing.T, fn func(out []byte) (value interface{}, result string)) {
+	rand.Seed(0)
+
+	buf := make([]byte, 20)
+	for i := 0; i < printerIterations; i++ {
+		value, actual := fn(buf)
+		expected := fmt.Sprintf("%d", value)
+
+		if string(expected) != string(actual) {
+			t.Errorf("Expected %q, got %q", expected, actual)
+		}
 	}
+}
+
+func TestItoaHundred(t *testing.T) {
+	testPrinter(t, func(out []byte) (value interface{}, result string) {
+		v := uint64(rand.Intn(100))
+		return v, FormatUint(v)
+	})
+}
+
+func TestItoaTenThousand(t *testing.T) {
+	testPrinter(t, func(out []byte) (value interface{}, result string) {
+		v := uint64(rand.Intn(10000))
+		return v, FormatUint(v)
+	})
+}
+
+func TestUint(t *testing.T) {
+	testPrinter(t, func(out []byte) (value interface{}, result string) {
+		v := rand.Uint64() >> uint(rand.Intn(64))
+		return v, FormatUint(v)
+	})
+}
+func TestInt(t *testing.T) {
+	testPrinter(t, func(out []byte) (value interface{}, result string) {
+		v := rand.Int63() >> uint(rand.Intn(64))
+		if rand.Intn(1) == 1 {
+			v = -v
+		}
+
+		return v, FormatInt(v)
+	})
 }
 
 var smallInt = 35
