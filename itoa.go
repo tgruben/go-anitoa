@@ -127,7 +127,8 @@ func itoaHundred(out []byte, x uint32) []byte {
 	 * -1 if x < 10, 0 otherwise.  Tried to get an sbb, but ?:
 	 * gets us branches.
 	 */
-	small := uint32((uint64(x) + uint64(0xfffffffffffffff6)) >> 8)
+	//small := uint32((uint64(x) + uint64(0xfffffffffffffff6)) >> 8)
+	small := uint32((int32(x - 10)) >> 8)
 	//base := (unsigned int)'0' | ((unsigned int)'0' << 8);
 	base := uint32(0x30 | (0x30 << 8))
 	/*
